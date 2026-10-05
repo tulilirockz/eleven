@@ -10,9 +10,10 @@ template $ElevenInstallationPage: Adw.Bin {
             show-end-title-buttons: false;
 
             [end]
-            Gtk.Button {
+            Gtk.ToggleButton {
                 tooltip-text: _("Show verbose terminal output");
                 icon-name: "utilities-terminal-symbolic";
+                clicked => $do_show_terminal();
                 styles [
                     "pill"
                 ]
@@ -20,13 +21,41 @@ template $ElevenInstallationPage: Adw.Bin {
         }
 
 
-        Adw.StatusPage status_page {
-            title: _("Installating {os_name}");
-            description: _("Do not turn off the power.");
-            icon-name: "system-logo-white";
+        Overlay {
+            Adw.StatusPage status_page {
+                title: _("Installating {os_name}");
+                description: _("Do not turn off the power.");
+                icon-name: "system-logo-white";
 
-            Adw.Spinner {
-              height-request: 40;
+                Adw.Spinner {
+                  height-request: 40;
+                }
+            }
+
+            [overlay]
+            Gtk.Box terminal_box {
+                halign: center;
+                orientation: vertical;
+                valign: center;
+                vexpand: true;
+                visible: false;
+
+                Frame {
+                    margin-bottom: 12;
+                
+                    ScrolledWindow {
+                        height-request: 600;
+                        width-request: 600;
+
+                        TextView terminal_output {
+                            editable: false;
+                            wrap-mode: char;
+                        }
+                    }
+                }
+                Button {
+                    label: _("Copy to Clipboard");
+                }
             }
         }
     };
