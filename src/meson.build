@@ -9,6 +9,8 @@ blueprints = custom_target('blueprints',
     'pages/welcome.blp',
     'pages/disks.blp',
     'pages/installation.blp',
+    'pages/failure.blp',
+    'pages/success.blp',
     'pages/experimental.blp'
   ),
   output: '.',
@@ -51,6 +53,8 @@ page_sources = [
   'pages/welcome.py',
   'pages/disks.py',
   'pages/installation.py',
+  'pages/success.py',
+  'pages/failure.py',
   'pages/experimental.py'
 ]
 

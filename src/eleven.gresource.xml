@@ -7,6 +7,8 @@
     <file preprocess="xml-stripblanks" alias="welcome.ui">pages/welcome.ui</file>
     <file preprocess="xml-stripblanks" alias="disks.ui">pages/disks.ui</file>
     <file preprocess="xml-stripblanks" alias="installation.ui">pages/installation.ui</file>
+    <file preprocess="xml-stripblanks" alias="failure.ui">pages/failure.ui</file>
+    <file preprocess="xml-stripblanks" alias="success.ui">pages/success.ui</file>
     <file preprocess="xml-stripblanks" alias="experimental.ui">pages/experimental.ui</file>
 
     <file preprocess="xml-stripblanks">icons/scalable/actions/experimental-symbolic.svg</file>

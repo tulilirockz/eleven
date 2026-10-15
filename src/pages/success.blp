@@ -1,0 +1,29 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $ElevenSuccessPage: Adw.Bin {
+    child: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {
+            show-title: false;
+            show-start-title-buttons: false;
+            show-end-title-buttons: false;
+
+            [end]
+            Gtk.ToggleButton {
+                tooltip-text: _("Show verbose terminal output");
+                icon-name: "utilities-terminal-symbolic";
+                clicked => $do_show_terminal();
+                styles [
+                    "pill"
+                ]
+            }
+        }
+
+        Adw.StatusPage status_page {
+            title: _("Successfully installed {os_name}!");
+            description: _("Yayyy Comgratulations");
+            icon-name: "system-logo-white";
+        }
+    };
+}

@@ -6,6 +6,9 @@ from .disks import ElevenDisksPage
 from .experimental import ElevenExperimentalPage
 from .installation import ElevenInstallationPage
 
+from .success import ElevenSuccessPage
+from .failure import ElevenFailurePage
+
 from gettext import gettext as _
 
 
@@ -13,10 +16,12 @@ from gettext import gettext as _
 class ElevenWindow(Adw.ApplicationWindow):
     __gtype_name__ = "ElevenWindow"
 
-    welcome_view = Gtk.Template.Child()
-    disks_view = Gtk.Template.Child()
-    installation_view = Gtk.Template.Child()
-    stack = Gtk.Template.Child()
+    welcome_view: Adw.NavigationPage = Gtk.Template.Child()
+    disks_view: Adw.NavigationPage = Gtk.Template.Child()
+    installation_view: Adw.NavigationPage = Gtk.Template.Child()
+    success_view: Adw.NavigationPage = Gtk.Template.Child()
+    failure_view: Adw.NavigationPage = Gtk.Template.Child()
+    stack: Adw.NavigationView = Gtk.Template.Child()
 
     def __init__(self, service, **kwargs):
         super().__init__(**kwargs)
@@ -28,10 +33,28 @@ class ElevenWindow(Adw.ApplicationWindow):
         self.installation_page: ElevenInstallationPage = ElevenInstallationPage(
             self.service
         )
+        self.success_page: ElevenSuccessPage = ElevenSuccessPage(self.service)
+        self.failure_page: ElevenFailurePage = ElevenFailurePage(self.service)
+        self.installation_page: ElevenInstallationPage = ElevenInstallationPage(
+            self.service
+        )
+
+        self.success_view.set_child(self.success_page)
+        self.failure_view.set_child(self.failure_page)
+        self.installation_view.set_child(self.installation_page)
+        self.installation_page: ElevenInstallationPage = ElevenInstallationPage(
+            self.service
+        )
 
         self.welcome_view.set_child(self.welcome_page)
         self.disks_view.set_child(self.disks_page)
-        self.installation_view.set_child(self.installation_page)
+
+        self.installation_page.connect(
+            "proceed-success-installation-page", self.show_success_view
+        )
+        self.installation_page.connect(
+            "proceed-failure-installation-page", self.show_failure_view
+        )
 
         self.disks_page.connect(
             "proceed-disks-page", self.show_installation_view
@@ -68,9 +91,27 @@ class ElevenWindow(Adw.ApplicationWindow):
         self.stack.push(self.disks_view)
 
     def show_installation_view(self, _view, _something):
+        self.installation_page.start_installation()
+
         self.stack.replace(
             [
                 self.installation_view,
             ]
         )
         self.stack.pop_to_page(self.installation_view)
+
+    def show_success_view(self, _view, _something):
+        self.stack.replace(
+            [
+                self.success_view,
+            ]
+        )
+        self.stack.pop_to_page(self.success_view)
+
+    def show_failure_view(self, _view, _something):
+        self.stack.replace(
+            [
+                self.failure_view,
+            ]
+        )
+        self.stack.pop_to_page(self.failure_view)
