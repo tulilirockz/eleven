@@ -2,8 +2,13 @@ from tempfile import mkstemp
 import threading
 
 import subprocess
+from typing import Any
+from pathlib import Path
 import gi
-import time
+import json
+from tempfile import mkdtemp
+
+from gi.repository.GLib import mkdir_with_parents
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
@@ -61,8 +66,17 @@ class ElevenInstallationPage(Adw.Bin):
 
     def run_installation_thread(self):
         self.successful_run = False
-        self.successful_run = install_bootc_to_device("", self.temporary_file)
-        time.sleep(10)
+        try:
+            self.successful_run = install_bootc_to_device(
+                self.service.config.repart_path,
+                self.service.config.target_device_to_install,
+                self.temporary_file,
+                self.service.config.target_imgref,
+                self.service.config.source_imgref,
+            )
+        except Exception as e:
+            self.successful_run = False
+            print(e)
         GObject.idle_add(self.stop_installation)
 
     def update_progress(self):
@@ -107,8 +121,146 @@ class ElevenInstallationPage(Adw.Bin):
 
 
 # monolithic function that partitions and installs a selected image to a target device, WILL automatically wipe everything as this is supposed to be an internal function
-def install_bootc_to_device(target_path: str, logfile_path: str) -> bool:
-    # with open(logfile_path, "w") as logfile:
-    #     subprocess.run(["systemd-repart", "--dry-run=no", "--empty=allow", "--no-pager", "--pretty=false", "--no-legend", "--definitions=${ZINST_REPART_DIR}", target_path], stdout=logfile, stderr=logfile)
-    #     subprocess.run(["systemd-repart", "--dry-run=yes", "--empty=allow", "--no-pager", "--pretty=false", "--no-legend", "--definitions=${ZINST_REPART_DIR}", target_path, "--json=short"], stdout=logfile, stderr=logfile)
-    return False
+def install_bootc_to_device(
+    repart_path: str,
+    target_path: str,
+    logfile_path: str,
+    target_imgref: str,
+    source_imgref: str,
+) -> bool:
+    with open(logfile_path, "w") as logfile:
+        print(
+            "running command",
+            [
+                "systemd-repart",
+                "--dry-run=no",
+                "--empty=allow",
+                "--no-pager",
+                "--pretty=false",
+                "--no-legend",
+                f"--definitions={repart_path}",
+                target_path,
+                "--json=short",
+            ],
+        )
+
+        repart_out = subprocess.run(
+            [
+                "pkexec",
+                "systemd-repart",
+                "--dry-run=no",
+                "--empty=force",
+                "--no-pager",
+                "--pretty=false",
+                "--no-legend",
+                f"--definitions={repart_path}",
+                target_path,
+                "--json=short",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout.decode("utf-8")
+        logfile.write(str(repart_out))
+        partition_out: dict[Any, Any] = json.loads(repart_out)
+        print(partition_out)
+
+        root_partition_path: str = list(
+            filter(
+                lambda x: x if x["type"].startswith("root") else None,
+                partition_out,
+            )
+        )[0]["node"]
+        boot_partition_path: str = list(
+            filter(
+                lambda x: x if x["type"] == "xbootldr" else None,
+                partition_out,
+            )
+        )[0]["node"]
+        esp_partition_path: str = list(
+            filter(
+                lambda x: x if x["type"] == "esp" else None,
+                partition_out,
+            )
+        )[0]["node"]
+        print(root_partition_path)
+        print(boot_partition_path)
+        print(esp_partition_path)
+
+        if root_partition_path == "":
+            print("Failed finding root partition for disk")
+            return False
+
+        root_mount_dir = mkdtemp("eleven-installer")
+        subprocess.run(
+            [
+                "pkexec",
+                "mount",
+                "-t",
+                "auto",
+                root_partition_path,
+                root_mount_dir,
+            ],
+            stdout=logfile,
+            stderr=logfile,
+        )
+
+        subprocess.run(
+            ["pkexec", "mkdir", "-p", f"{root_mount_dir}/boot"],
+            stdout=logfile,
+            stderr=logfile,
+        )
+
+        subprocess.run(
+            [
+                "pkexec",
+                "mount",
+                "-t",
+                "auto",
+                boot_partition_path,
+                f"{root_mount_dir}/boot",
+            ],
+            stdout=logfile,
+            stderr=logfile,
+        )
+
+        subprocess.run(
+            ["pkexec", "mkdir", "-p", f"{root_mount_dir}/boot/efi"],
+            stdout=logfile,
+            stderr=logfile,
+        )
+
+        subprocess.run(
+            [
+                "pkexec",
+                "mount",
+                "-t",
+                "auto",
+                esp_partition_path,
+                f"{root_mount_dir}/boot/efi",
+            ],
+            stdout=logfile,
+            stderr=logfile,
+        )
+
+        subprocess.run(
+            [
+                "pkexec",
+                "bootc",
+                "install",
+                "to-filesystem",
+                "--acknowledge-destructive",
+                "--target-imgref",
+                target_imgref,
+                "--enforce-container-sigpolicy",
+                "--skip-fetch-check",
+                "--source-imgref",
+                source_imgref,
+                root_mount_dir,
+            ],
+            stdout=logfile,
+            stderr=logfile,
+        )
+
+    # trap 'umount ${ROOT_MOUNT} ; umount ${ROOT_MOUNT}/boot ; umount ${ROOT_MOUNT}/boot/efi' EXIT
+
+    return True

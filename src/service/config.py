@@ -3,8 +3,13 @@ import tomllib
 
 from gettext import gettext as _
 
-class ElevenInstallerServiceConfig():
+
+class ElevenInstallerServiceConfig:
     config_path = Path("/usr/share/apollo/eleven/config.toml")
+    repart_path = Path("/usr/share/apollo/eleven/repart.d")
+
+    # Storing this information here so we can format/install to the disk later
+    target_device_to_install = ""
 
     def __init__(self, *kwargs, log):
         self.log = log
@@ -17,9 +22,9 @@ class ElevenInstallerServiceConfig():
         self.experimental = False
 
     def load_config(self, *kwargs):
-        with open ("/usr/share/apollo/eleven/config.toml", "rb") as config:
+        with open("/usr/share/apollo/eleven/config.toml", "rb") as config:
             # Required/mandatory values
-            try: 
+            try:
                 data = tomllib.load(config)
 
                 self.os_name = data["info"]["os_name"]
@@ -27,11 +32,17 @@ class ElevenInstallerServiceConfig():
                 self.filesystem = data["disks"]["filesystem"]
                 self.efi_size = data["disks"]["efi_size"]
 
-                self.target_image = data["bootc"]["target_image"]
-                self.image_source = data["bootc"]["source"]
+                self.target_imgref = data["bootc"]["target_imgref"]
+                self.source_imgref = data["bootc"]["source_imgref"]
 
             except KeyError as e:
-                self.log.new_entry(3, _("Configuration has missing parameter: {parameter}").format(parameter=e), 12)
+                self.log.new_entry(
+                    3,
+                    _(
+                        "Configuration has missing parameter: {parameter}"
+                    ).format(parameter=e),
+                    12,
+                )
 
                 return False
 
@@ -49,5 +60,9 @@ class ElevenInstallerServiceConfig():
             self.exists = True
             return True
         else:
-            self.log.new_entry(3, "Configuration could not be found at /usr/share/apollo/eleven/config.toml}", 11)
+            self.log.new_entry(
+                3,
+                "Configuration could not be found at /usr/share/apollo/eleven/config.toml}",
+                11,
+            )
             return False

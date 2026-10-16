@@ -17,6 +17,8 @@ class ElevenDisksPage(Adw.Bin):
     disk_encryption: Adw.SwitchRow = Gtk.Template.Child()
     install_button: Gtk.Button = Gtk.Template.Child()
     alert_idk: Adw.AlertDialog = Gtk.Template.Child()
+    disks_selection = {}
+    original_alert_body = ""
 
     selected_drive = None
     tpm_unlock_enable = False
@@ -25,13 +27,13 @@ class ElevenDisksPage(Adw.Bin):
     def _on_dialog_click(self, object: Adw.AlertDialog, drive):
         print(object)
 
-    def _select_drive(self, object: Gtk.CheckButton, drive):
+    def _select_drive(self, object: Gtk.CheckButton):
         if object.get_active():
-            self.selected_drive = drive
+            self.selected_drive = self.disks_selection[object.get_name()]
+            self.service.config.target_device_to_install = self.selected_drive.id
             self.install_button.set_sensitive(True)
-            print(self.selected_drive)
             self.alert_idk.set_body(
-                str(self.alert_idk.get_body()).format(
+                self.original_alert_body.format(
                     disk_name=self.selected_drive.model
                 )
             )
@@ -69,6 +71,8 @@ class ElevenDisksPage(Adw.Bin):
 
         self.service = service
 
+        self.original_alert_body = self.alert_idk.get_body()
+
         self.alert_idk.set_heading(
             str(self.alert_idk.get_heading()).format(
                 os_name=self.service.config.os_name
@@ -78,13 +82,17 @@ class ElevenDisksPage(Adw.Bin):
         drives_model = self.service.disks.get_drives()
         select_drive_check = Gtk.CheckButton()
 
+        num = 0
         for list_item in drives_model:
             select_button = Gtk.CheckButton(
-                group=select_drive_check, active=False
+                group=select_drive_check,
+                active=False,
+                name=f"uniqbuttonnumber{num}",
             )
+            self.disks_selection[f"uniqbuttonnumber{num}"] = list_item
             select_button.connect(
                 "toggled",
-                lambda _self: self._select_drive(_self, list_item),
+                self._select_drive,
             )
             action_row = Adw.ActionRow(
                 title=list_item.model,
@@ -100,9 +108,5 @@ class ElevenDisksPage(Adw.Bin):
 
             action_row.add_prefix(row_img)
 
-            action_row.connect(
-                "activated",
-                lambda _self: self._select_drive(_self, list_item),
-            )
-
             self.disks_list.append(action_row)
+            num += 1
